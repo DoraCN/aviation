@@ -88,6 +88,8 @@ fn player_movement_system(
         movement_factor -= 1.0;
     }
 
+    // println!("{rotation_factor:?} {movement_factor:?}");
+
     transform.rotate_z(rotation_factor * ship.rotation_speed * time.delta_secs());
 
     let movement_direction = transform.rotation * Vec3::Y;

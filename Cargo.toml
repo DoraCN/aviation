@@ -5,6 +5,8 @@ edition = "2024"
 
 [dependencies]
 bevy = "0.16.1"
+crossbeam-channel = "0.5.15"
+dora-node-api = "0.3.12"
 
 # Enable a small amount of optimization in the dev profile.
 [profile.dev]
