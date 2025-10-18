@@ -44,7 +44,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         Text::new("控制小飞机"),
         TextFont {
             font: asset_server.load("fonts/Alibaba_PuHuiTi_2.0_55_Regular_55_Regular.ttf"),
-            font_size: 33.0,
+            font_size: 26.0,
             ..default()
         },
         Node {
@@ -68,8 +68,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         .spawn((
             Button,
             Node {
-                width: Val::Px(140.0),
-                height: Val::Px(44.0),
+                width: Val::Px(80.0),
+                height: Val::Px(40.0),
                 justify_content: JustifyContent::Center,
                 align_items: AlignItems::Center,
                 position_type: PositionType::Absolute,
@@ -78,14 +78,15 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                 ..default()
             },
             BackgroundColor(Color::srgb(0.0, 0.45, 0.8)),
+            BorderRadius::all(Val::Px(20.0)),
             ClearPathButton,
         ))
         .with_children(|parent| {
             parent.spawn((
-                Text::new("清除线条"),
+                Text::new("清除轨迹"),
                 TextFont {
                     font: asset_server.load("fonts/Alibaba_PuHuiTi_2.0_55_Regular_55_Regular.ttf"),
-                    font_size: 20.0,
+                    font_size: 14.0,
                     ..default()
                 },
                 TextColor::WHITE,
