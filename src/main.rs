@@ -102,13 +102,13 @@ fn player_movement_system(
     transform.translation = transform.translation.min(extents).max(-extents);
 }
 
-fn update_path_system(mut query: Single<(&mut AviationPath, &mut Transform), With<Player>>) {
+fn update_path_system(query: Single<(&mut AviationPath, &mut Transform), With<Player>>) {
     let (mut path, transform) = query.into_inner();
     let current_position = transform.translation.truncate();
 
     if let Some(last_point) = path.0.last() {
         if last_point.distance(current_position) < PATH_POINT_DISTANCE {
-            println!("current_position: {current_position:?}");
+            // println!("current_position: {current_position:?}");
             path.0.push(current_position);
         }
     }
