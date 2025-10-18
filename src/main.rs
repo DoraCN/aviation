@@ -7,7 +7,7 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
-                title: "小飞机模拟器 - Dora".into(),
+                title: "DORA小飞机模拟器".into(),
                 // resolution: (800., 600.).into(),
                 ..default()
             }),
@@ -16,7 +16,7 @@ fn main() {
         .insert_resource(Time::<Fixed>::from_hz(60.0))
         .add_systems(Startup, setup)
         .add_systems(FixedUpdate, (player_movement_system, update_path_system))
-        .add_systems(Update, draw_path_system)
+        .add_systems(Update, (draw_path_system, clear_path_button_system))
         .run();
 }
 
@@ -31,6 +31,9 @@ struct Player {
 struct AviationPath {
     points: Vec<Vec2>,
 }
+
+#[derive(Component)]
+struct ClearPathButton;
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let ship_handle = asset_server.load("images/ship_C.png");
@@ -60,6 +63,34 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         },
         AviationPath::default(),
     ));
+
+    commands
+        .spawn((
+            Button,
+            Node {
+                width: Val::Px(140.0),
+                height: Val::Px(44.0),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                position_type: PositionType::Absolute,
+                top: Val::Px(20.0),
+                right: Val::Px(20.0),
+                ..default()
+            },
+            BackgroundColor(Color::srgb(0.0, 0.45, 0.8)),
+            ClearPathButton,
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Text::new("清除线条"),
+                TextFont {
+                    font: asset_server.load("fonts/Alibaba_PuHuiTi_2.0_55_Regular_55_Regular.ttf"),
+                    font_size: 20.0,
+                    ..default()
+                },
+                TextColor::WHITE,
+            ));
+        });
 }
 
 fn player_movement_system(
@@ -134,4 +165,35 @@ fn draw_path_system(path_query: Query<&AviationPath, With<Player>>, mut gizmos: 
         .collect::<Vec<_>>();
 
     gizmos.linestrip(points, Color::WHITE);
+}
+
+fn clear_path_button_system(
+    mut interactions: Query<
+        (&Interaction, &mut BackgroundColor),
+        (Changed<Interaction>, With<ClearPathButton>),
+    >,
+    mut path_query: Query<&mut AviationPath, With<Player>>,
+) {
+    let normal = Color::srgb(0.0, 0.45, 0.8);
+    let hovered = Color::srgb(0.0, 0.55, 0.95);
+    let pressed = Color::srgb(0.0, 0.35, 0.65);
+
+    let mut clear_requested = false;
+
+    for (interaction, mut color) in &mut interactions {
+        match *interaction {
+            Interaction::Pressed => {
+                *color = pressed.into();
+                clear_requested = true;
+            }
+            Interaction::Hovered => *color = hovered.into(),
+            Interaction::None => *color = normal.into(),
+        }
+    }
+
+    if clear_requested {
+        if let Some(mut path) = path_query.iter_mut().next() {
+            path.points.clear();
+        }
+    }
 }
