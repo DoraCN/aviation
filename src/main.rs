@@ -16,6 +16,7 @@ fn main() {
         .insert_resource(Time::<Fixed>::from_hz(60.0))
         .add_systems(Startup, setup)
         .add_systems(FixedUpdate, (player_movement_system, update_path_system))
+        .add_systems(Update, draw_path_system)
         .run();
 }
 
@@ -26,22 +27,20 @@ struct Player {
 }
 
 /// 用于记录小飞机的移动路径点
-#[derive(Component)]
-struct AviationPath(Vec<Vec2>);
+#[derive(Component, Default)]
+struct AviationPath {
+    points: Vec<Vec2>,
+}
 
-/// 用于标记路径绘图实体的组件
-#[derive(Component)]
-struct PathEntity;
-
-fn setup(mut commands: Commands, assert_server: Res<AssetServer>) {
-    let ship_handel = assert_server.load("images/ship_C.png");
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+    let ship_handle = asset_server.load("images/ship_C.png");
 
     commands.spawn(Camera2d);
 
     commands.spawn((
         Text::new("控制小飞机"),
         TextFont {
-            font: assert_server.load("fonts/Alibaba_PuHuiTi_2.0_55_Regular_55_Regular.ttf"),
+            font: asset_server.load("fonts/Alibaba_PuHuiTi_2.0_55_Regular_55_Regular.ttf"),
             font_size: 33.0,
             ..default()
         },
@@ -54,11 +53,12 @@ fn setup(mut commands: Commands, assert_server: Res<AssetServer>) {
     ));
 
     commands.spawn((
-        Sprite::from_image(ship_handel),
+        Sprite::from_image(ship_handle),
         Player {
             movement_speed: 300.0,
             rotation_speed: f32::to_radians(360.0),
         },
+        AviationPath::default(),
     ));
 }
 
@@ -102,14 +102,36 @@ fn player_movement_system(
     transform.translation = transform.translation.min(extents).max(-extents);
 }
 
-fn update_path_system(query: Single<(&mut AviationPath, &mut Transform), With<Player>>) {
-    let (mut path, transform) = query.into_inner();
+fn update_path_system(mut query: Query<(&mut AviationPath, &Transform), With<Player>>) {
+    let Some((mut path, transform)) = query.iter_mut().next() else {
+        return;
+    };
+
     let current_position = transform.translation.truncate();
 
-    if let Some(last_point) = path.0.last() {
-        if last_point.distance(current_position) < PATH_POINT_DISTANCE {
-            // println!("current_position: {current_position:?}");
-            path.0.push(current_position);
-        }
+    let should_record = path.points.last().map_or(true, |last_point| {
+        last_point.distance(current_position) >= PATH_POINT_DISTANCE
+    });
+
+    if should_record {
+        path.points.push(current_position);
     }
+}
+
+fn draw_path_system(path_query: Query<&AviationPath, With<Player>>, mut gizmos: Gizmos) {
+    let Some(path) = path_query.iter().next() else {
+        return;
+    };
+
+    if path.points.len() < 2 {
+        return;
+    }
+
+    let points = path
+        .points
+        .iter()
+        .map(|point| Vec3::new(point.x, point.y, 0.0))
+        .collect::<Vec<_>>();
+
+    gizmos.linestrip(points, Color::WHITE);
 }
