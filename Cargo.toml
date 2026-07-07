@@ -3,10 +3,33 @@ name = "aviation"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+name = "aviation"
+path = "src/lib.rs"
+
+[[bin]]
+name = "aviation"
+path = "src/main.rs"
+
+[[bin]]
+name = "aviation-dora"
+path = "src/bin/dora.rs"
+required-features = ["dora"]
+
+[[bin]]
+name = "aviation-controller"
+path = "src/bin/controller.rs"
+required-features = ["dora"]
+
+[features]
+default = []
+dora = ["dep:dora-node-api", "dep:crossbeam-channel", "dep:eyre"]
+
 [dependencies]
-bevy = "0.16.1"
-crossbeam-channel = "0.5.15"
-dora-node-api = "0.3.12"
+bevy = "0.19.0"
+crossbeam-channel = { version = "0.5.15", optional = true }
+eyre = { version = "0.6", optional = true }
+dora-node-api = { git = "https://atomgit.com/dora-rs/dora.git", rev = "25bac6b3e5ed7435f49bd494e0ff4ef81ee0a674", default-features = false, optional = true }
 
 # Enable a small amount of optimization in the dev profile.
 [profile.dev]

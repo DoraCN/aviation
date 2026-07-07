@@ -1,0 +1,11 @@
+nodes:
+  - id: controller
+    path: target/release/aviation-controller
+    inputs:
+      tick: dora/timer/millis/16
+    outputs: [cmd]
+  - id: aviation
+    path: target/release/aviation-dora
+    inputs:
+      cmd: controller/cmd
+    outputs: [pose]
