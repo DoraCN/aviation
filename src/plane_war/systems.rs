@@ -17,7 +17,14 @@ const BOMB_RADIUS: f32 = 30.0;
 //  玩家输入
 // ══════════════════════════════════════════
 
-pub fn player_input(keyboard: Res<ButtonInput<KeyCode>>, mut intent: ResMut<PlayerIntent>) {
+pub fn player_input(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut intent: ResMut<PlayerIntent>,
+    input_mode: Res<InputMode>,
+) {
+    if *input_mode == InputMode::Dora {
+        return;
+    }
     let mut mx = 0.0f32;
     let mut my = 0.0f32;
 
@@ -38,6 +45,18 @@ pub fn player_input(keyboard: Res<ButtonInput<KeyCode>>, mut intent: ResMut<Play
     intent.move_y = my;
     if keyboard.just_pressed(KeyCode::Space) || keyboard.just_pressed(KeyCode::KeyJ) {
         intent.fire = true;
+    }
+}
+
+/// dora 版输入：从 DoraBridge channel 读取最新 PlayerIntent。
+#[cfg(feature = "dora")]
+pub fn dora_input_system(bridge: Res<DoraBridge>, mut intent: ResMut<PlayerIntent>) {
+    let mut latest = None;
+    while let Ok(cmd) = bridge.commands.try_recv() {
+        latest = Some(cmd);
+    }
+    if let Some(cmd) = latest {
+        *intent = cmd;
     }
 }
 
@@ -448,7 +467,13 @@ pub fn spawn_game_over(mut commands: Commands, score: Res<Score>, high: Res<High
                 MenuUi,
             ));
 
-            parent.spawn((Node { height: Val::Px(20.0), ..default() }, MenuUi));
+            parent.spawn((
+                Node {
+                    height: Val::Px(20.0),
+                    ..default()
+                },
+                MenuUi,
+            ));
 
             parent.spawn((
                 Text::new("[R] Retry"),

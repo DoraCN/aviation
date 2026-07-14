@@ -1,5 +1,11 @@
 use bevy::prelude::*;
 
+#[cfg(feature = "dora")]
+use std::sync::{Arc, atomic::AtomicBool};
+
+#[cfg(feature = "dora")]
+use crossbeam_channel::Receiver;
+
 // ── 资源 ──
 
 /// 所有预加载的游戏素材句柄。
@@ -89,6 +95,23 @@ pub struct PlayerIntent {
     pub move_x: f32,
     pub move_y: f32,
     pub fire: bool,
+}
+
+/// dora 版使用的桥接资源（独立键盘版不设置此资源）。
+#[cfg(feature = "dora")]
+#[derive(Resource)]
+pub struct DoraBridge {
+    pub commands: Receiver<PlayerIntent>,
+    pub stop: Arc<AtomicBool>,
+}
+
+/// 输入来源——决定由哪个系统驱动 PlayerIntent。
+#[derive(Resource, Default, PartialEq)]
+pub enum InputMode {
+    #[default]
+    Keyboard,
+    #[allow(dead_code)]
+    Dora,
 }
 
 /// 窗口 / 世界尺寸。

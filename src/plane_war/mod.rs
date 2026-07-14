@@ -10,6 +10,10 @@ use components::*;
 use resources::*;
 use systems::*;
 
+pub use resources::{InputMode, PlayerIntent};
+#[cfg(feature = "dora")]
+pub use resources::DoraBridge;
+
 /// 游戏全局状态
 #[derive(States, Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub enum GameState {
@@ -31,6 +35,7 @@ impl Plugin for GamePlugin {
             .init_resource::<SpawnTimers>()
             .init_resource::<Difficulty>()
             .init_resource::<ExplosionTimer>()
+            .init_resource::<InputMode>()
             .insert_resource(ClearColor(Color::srgb(0.04, 0.04, 0.10)))
             // Loading → Playing
             .add_systems(OnEnter(GameState::Loading), load_game_assets)
@@ -87,6 +92,16 @@ impl Plugin for GamePlugin {
                 game_over_input.run_if(in_state(GameState::GameOver)),
             )
             .add_systems(OnExit(GameState::GameOver), despawn_menu_ui);
+
+        #[cfg(feature = "dora")]
+        app.add_systems(
+            FixedUpdate,
+            dora_input_system
+                .before(player_input)
+                .run_if(in_state(GameState::Playing)),
+        );
+        #[cfg(feature = "dora")]
+        app.add_systems(Update, dora_stop_system);
     }
 }
 
@@ -194,6 +209,13 @@ fn game_over_input(
         if score.0 > high.0 {
             high.0 = score.0;
         }
+        exit.write(AppExit::Success);
+    }
+}
+
+#[cfg(feature = "dora")]
+fn dora_stop_system(bridge: Res<DoraBridge>, mut exit: MessageWriter<AppExit>) {
+    if bridge.stop.load(std::sync::atomic::Ordering::SeqCst) {
         exit.write(AppExit::Success);
     }
 }

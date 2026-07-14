@@ -25,6 +25,11 @@ required-features = ["dora"]
 name = "plane-war"
 path = "src/bin/plane_war.rs"
 
+[[bin]]
+name = "plane-war-dora"
+path = "src/bin/plane_war_dora.rs"
+required-features = ["dora"]
+
 [features]
 default = []
 dora = ["dep:dora-node-api", "dep:crossbeam-channel", "dep:eyre"]
