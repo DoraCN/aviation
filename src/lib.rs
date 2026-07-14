@@ -80,6 +80,9 @@ pub struct DirectionState {
     pub down: bool,
     pub left: bool,
     pub right: bool,
+    pub fire: bool,
+    pub retry: bool,
+    pub exit: bool,
 }
 
 impl DirectionState {
@@ -92,9 +95,21 @@ impl DirectionState {
         (self.up as u8 as f32) - (self.down as u8 as f32)
     }
 
-    /// 是否有任意方向被激活。
+    pub fn fire_factor(self) -> f32 {
+        self.fire as u8 as f32
+    }
+
+    pub fn retry_factor(self) -> f32 {
+        self.retry as u8 as f32
+    }
+
+    pub fn exit_factor(self) -> f32 {
+        self.exit as u8 as f32
+    }
+
+    /// 是否有任意方向或开火键被激活。
     pub fn is_any_pressed(self) -> bool {
-        self.up || self.down || self.left || self.right
+        self.up || self.down || self.left || self.right || self.fire || self.retry || self.exit
     }
 }
 

@@ -4,6 +4,13 @@ nodes:
     inputs:
       tick: dora/timer/millis/16
     outputs: [cmd]
+
+  # - id: aviation
+  #   path: target/release/aviation-dora
+  #   inputs:
+  #     cmd: controller/cmd
+  #   outputs: [pose]
+
   - id: plane-war
     path: target/release/plane-war-dora
     inputs: { cmd: controller/cmd }

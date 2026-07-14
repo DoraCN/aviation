@@ -95,6 +95,8 @@ pub struct PlayerIntent {
     pub move_x: f32,
     pub move_y: f32,
     pub fire: bool,
+    pub retry: bool,
+    pub exit: bool,
 }
 
 /// dora 版使用的桥接资源（独立键盘版不设置此资源）。

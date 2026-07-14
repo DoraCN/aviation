@@ -55,9 +55,7 @@ pub fn dora_input_system(bridge: Res<DoraBridge>, mut intent: ResMut<PlayerInten
     while let Ok(cmd) = bridge.commands.try_recv() {
         latest = Some(cmd);
     }
-    if let Some(cmd) = latest {
-        *intent = cmd;
-    }
+    *intent = latest.unwrap_or_default();
 }
 
 // ══════════════════════════════════════════

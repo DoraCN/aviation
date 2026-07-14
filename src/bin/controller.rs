@@ -23,22 +23,23 @@ enum DirButton {
     Down,
     Left,
     Right,
+    Fire,
 }
 
 #[derive(Resource)]
 struct DoraChannel {
-    direction_tx: Sender<DirectionState>,
+    direction_tx: Sender<LatestDirection>,
     stop: Arc<AtomicBool>,
 }
 
 fn main() {
-    let (dir_tx, dir_rx) = unbounded::<DirectionState>();
+    let (dir_tx, dir_rx) = unbounded::<LatestDirection>();
     let stop = Arc::new(AtomicBool::new(false));
     let thread_stop = stop.clone();
 
     thread::spawn(move || {
         if let Err(err) = run_dora_node(dir_rx, &thread_stop) {
-            eprintln!("dora 控制器节点退出: {err}");
+            eprintln!("dora controller node exit: {err}");
         }
         thread_stop.store(true, Ordering::SeqCst);
     });
@@ -48,7 +49,7 @@ fn main() {
             DefaultPlugins
                 .set(WindowPlugin {
                     primary_window: Some(Window {
-                        title: "DORA 小飞机控制器".into(),
+                        title: "DORA Plane Controller".into(),
                         resolution: bevy::window::WindowResolution::new(320, 380)
                             .with_scale_factor_override(1.0),
                         ..default()
@@ -80,23 +81,42 @@ fn main() {
         .run();
 }
 
-fn run_dora_node(dir_rx: Receiver<DirectionState>, stop: &AtomicBool) -> eyre::Result<()> {
+fn run_dora_node(dir_rx: Receiver<LatestDirection>, stop: &AtomicBool) -> eyre::Result<()> {
     let (mut node, mut events) = DoraNode::init_from_env()?;
     let cmd_id = DataId::from(OUTPUT_CMD.to_owned());
-    let mut state = DirectionState::default();
+    let mut latest: Option<LatestDirection> = None;
 
     while let Some(event) = events.recv() {
         match event {
             Event::Input { ref id, .. } if id.as_str() == INPUT_TICK => {
-                // 非阻塞地取最新方向状态（可能一个都没有，沿用上一次）。
                 while let Ok(next) = dir_rx.try_recv() {
-                    state = next;
+                    latest = Some(next);
                 }
-                if state.is_any_pressed() {
+
+                let pending = if let Some(ref mut ld) = latest {
+                    let has_fire = ld.fire_pending > 0;
+                    if has_fire {
+                        ld.fire_pending -= 1;
+                    }
+                    let mut state = ld.dir;
+                    state.fire = has_fire;
+                    state
+                } else {
+                    DirectionState::default()
+                };
+
+                if pending.is_any_pressed() {
                     node.send_output(
                         cmd_id.clone(),
                         MetadataParameters::default(),
-                        vec![state.rotation_factor(), state.movement_factor()].into_arrow(),
+                        vec![
+                            pending.rotation_factor(),
+                            pending.movement_factor(),
+                            pending.fire_factor(),
+                            pending.retry_factor(),
+                            pending.exit_factor(),
+                        ]
+                        .into_arrow(),
                     )?;
                 }
             }
@@ -156,6 +176,25 @@ fn setup(mut commands: Commands, mut fonts: ResMut<Assets<Font>>) {
                 .with_children(|p| {
                     p.spawn(label_text("↓", &font));
                 });
+
+            // FIRE
+            parent.spawn(Node {
+                height: Val::Px(8.0),
+                ..default()
+            });
+            parent
+                .spawn(button_bundle(DirButton::Fire))
+                .with_children(|p| {
+                    p.spawn((
+                        Text::new("FIRE"),
+                        TextFont {
+                            font: font.clone().into(),
+                            font_size: FontSize::Px(18.0),
+                            ..default()
+                        },
+                        TextColor::WHITE,
+                    ));
+                });
         });
 }
 
@@ -187,38 +226,46 @@ fn label_text(label: &str, font: &Handle<Font>) -> (Text, TextFont, TextColor) {
 }
 
 #[derive(Resource, Default)]
-struct LatestDirection(DirectionState);
+struct LatestDirection {
+    dir: DirectionState,
+    fire_pending: u32,
+}
 
 fn input_direction_system(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     buttons: Query<(&Interaction, &DirButton)>,
     mut latest: ResMut<LatestDirection>,
 ) {
-    let kb = DirectionState {
+    let mut dir = DirectionState {
         up: keyboard_input.pressed(KeyCode::ArrowUp) || keyboard_input.pressed(KeyCode::KeyW),
         down: keyboard_input.pressed(KeyCode::ArrowDown) || keyboard_input.pressed(KeyCode::KeyS),
         left: keyboard_input.pressed(KeyCode::ArrowLeft) || keyboard_input.pressed(KeyCode::KeyA),
         right: keyboard_input.pressed(KeyCode::ArrowRight) || keyboard_input.pressed(KeyCode::KeyD),
+        retry: keyboard_input.pressed(KeyCode::KeyR),
+        exit: keyboard_input.pressed(KeyCode::KeyE),
+        ..Default::default()
     };
 
-    let mut bt = DirectionState::default();
     for (interaction, &kind) in &buttons {
         if matches!(interaction, Interaction::Pressed) {
             match kind {
-                DirButton::Up => bt.up = true,
-                DirButton::Down => bt.down = true,
-                DirButton::Left => bt.left = true,
-                DirButton::Right => bt.right = true,
+                DirButton::Up => dir.up = true,
+                DirButton::Down => dir.down = true,
+                DirButton::Left => dir.left = true,
+                DirButton::Right => dir.right = true,
+                DirButton::Fire => {
+                    dir.fire = true;
+                    latest.fire_pending = latest.fire_pending.saturating_add(1);
+                }
             }
         }
     }
 
-    latest.0 = DirectionState {
-        up: kb.up || bt.up,
-        down: kb.down || bt.down,
-        left: kb.left || bt.left,
-        right: kb.right || bt.right,
-    };
+    if keyboard_input.just_pressed(KeyCode::Space) || keyboard_input.just_pressed(KeyCode::KeyJ) {
+        latest.fire_pending = latest.fire_pending.saturating_add(1);
+    }
+
+    latest.dir = dir;
 }
 
 fn button_visual_system(
@@ -227,10 +274,11 @@ fn button_visual_system(
 ) {
     for (&kind, mut color) in &mut colors {
         let active = match kind {
-            DirButton::Up => latest.0.up,
-            DirButton::Down => latest.0.down,
-            DirButton::Left => latest.0.left,
-            DirButton::Right => latest.0.right,
+            DirButton::Up => latest.dir.up,
+            DirButton::Down => latest.dir.down,
+            DirButton::Left => latest.dir.left,
+            DirButton::Right => latest.dir.right,
+            DirButton::Fire => latest.dir.fire,
         };
         *color = if active {
             BTN_ACTIVE.into()
@@ -241,7 +289,10 @@ fn button_visual_system(
 }
 
 fn send_direction_system(channel: Res<DoraChannel>, latest: Res<LatestDirection>) {
-    let _ = channel.direction_tx.send(latest.0);
+    let _ = channel.direction_tx.send(LatestDirection {
+        dir: latest.dir,
+        fire_pending: latest.fire_pending,
+    });
 }
 
 fn dora_stop_system(channel: Res<DoraChannel>, mut exit: MessageWriter<AppExit>) {

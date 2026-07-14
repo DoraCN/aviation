@@ -10,9 +10,9 @@ use components::*;
 use resources::*;
 use systems::*;
 
-pub use resources::{InputMode, PlayerIntent};
 #[cfg(feature = "dora")]
 pub use resources::DoraBridge;
+pub use resources::{HighScore, InputMode, PlayerIntent, Score};
 
 /// 游戏全局状态
 #[derive(States, Debug, Clone, PartialEq, Eq, Hash, Default)]
@@ -101,7 +101,10 @@ impl Plugin for GamePlugin {
                 .run_if(in_state(GameState::Playing)),
         );
         #[cfg(feature = "dora")]
-        app.add_systems(Update, dora_stop_system);
+        app.add_systems(
+            Update,
+            dora_stop_system.run_if(not(in_state(GameState::GameOver))),
+        );
     }
 }
 

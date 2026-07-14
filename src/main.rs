@@ -40,6 +40,9 @@ fn player_movement_system(
         down: keyboard_input.pressed(KeyCode::ArrowDown) || keyboard_input.pressed(KeyCode::KeyS),
         left: keyboard_input.pressed(KeyCode::ArrowLeft) || keyboard_input.pressed(KeyCode::KeyA),
         right: keyboard_input.pressed(KeyCode::ArrowRight) || keyboard_input.pressed(KeyCode::KeyD),
+        fire: false,
+        retry: false,
+        exit: false,
     };
 
     let margin = ship_bounding_radius(sprite, &images);
